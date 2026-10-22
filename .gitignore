@@ -1,0 +1,8 @@
+# Environment files may contain credentials and secrets.
+.env
+.env.*
+!.env.example
+
+# Installed dependencies and generated build output.
+node_modules/
+dist/

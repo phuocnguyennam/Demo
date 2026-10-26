@@ -16,40 +16,137 @@
     <relativePath/>
   </parent>
 
+
+    
   <properties>
-    <java.version>1.8</java.version>
+      <java.version>1.8</java.version>
+      <testcontainers.version>1.19.8</testcontainers.version>
+      <datafaker.version>1.9.0</datafaker.version>
+      <dbunit.version>2.7.3</dbunit.version>
   </properties>
 
   <dependencies>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-jdbc</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework.security</groupId>
-      <artifactId>spring-security-crypto</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.auth0</groupId>
-      <artifactId>java-jwt</artifactId>
-      <version>4.4.0</version>
-    </dependency>
-    <dependency>
-      <groupId>org.postgresql</groupId>
-      <artifactId>postgresql</artifactId>
-      <scope>runtime</scope>
-    </dependency>
+      <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-web</artifactId>
+      </dependency>
+
+      <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-jdbc</artifactId>
+      </dependency>
+
+      <dependency>
+          <groupId>org.springframework.security</groupId>
+          <artifactId>spring-security-crypto</artifactId>
+      </dependency>
+
+      <dependency>
+          <groupId>com.auth0</groupId>
+          <artifactId>java-jwt</artifactId>
+          <version>4.4.0</version>
+      </dependency>
+
+      <dependency>
+          <groupId>org.postgresql</groupId>
+          <artifactId>postgresql</artifactId>
+          <scope>runtime</scope>
+      </dependency>
+
+      <!-- Database migrations -->
+      <dependency>
+          <groupId>org.flywaydb</groupId>
+          <artifactId>flyway-core</artifactId>
+      </dependency>
+
+      <!-- Testing -->
+      <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-test</artifactId>
+          <scope>test</scope>
+      </dependency>
+
+      <dependency>
+          <groupId>org.testcontainers</groupId>
+          <artifactId>junit-jupiter</artifactId>
+          <version>${testcontainers.version}</version>
+          <scope>test</scope>
+      </dependency>
+
+      <dependency>
+          <groupId>org.testcontainers</groupId>
+          <artifactId>postgresql</artifactId>
+          <version>${testcontainers.version}</version>
+          <scope>test</scope>
+      </dependency>
+
+      <dependency>
+          <groupId>net.datafaker</groupId>
+          <artifactId>datafaker</artifactId>
+          <version>${datafaker.version}</version>
+          <scope>test</scope>
+      </dependency>
+
+      <dependency>
+          <groupId>org.dbunit</groupId>
+          <artifactId>dbunit</artifactId>
+          <version>${dbunit.version}</version>
+          <scope>test</scope>
+      </dependency>
   </dependencies>
+
+  <!-- <properties> -->
+  <!--   <java.version>1.8</java.version> -->
+  <!-- </properties> -->
+  <!---->
+  <!-- <dependencies> -->
+  <!--   <dependency> -->
+  <!--     <groupId>org.springframework.boot</groupId> -->
+  <!--     <artifactId>spring-boot-starter-web</artifactId> -->
+  <!--   </dependency> -->
+  <!--   <dependency> -->
+  <!--     <groupId>org.springframework.boot</groupId> -->
+  <!--     <artifactId>spring-boot-starter-jdbc</artifactId> -->
+  <!--   </dependency> -->
+  <!--   <dependency> -->
+  <!--     <groupId>org.springframework.security</groupId> -->
+  <!--     <artifactId>spring-security-crypto</artifactId> -->
+  <!--   </dependency> -->
+  <!--   <dependency> -->
+  <!--     <groupId>com.auth0</groupId> -->
+  <!--     <artifactId>java-jwt</artifactId> -->
+  <!--     <version>4.4.0</version> -->
+  <!--   </dependency> -->
+  <!--   <dependency> -->
+  <!--     <groupId>org.postgresql</groupId> -->
+  <!--     <artifactId>postgresql</artifactId> -->
+  <!--     <scope>runtime</scope> -->
+  <!--   </dependency> -->
+  <!-- </dependencies> -->
 
   <build>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!--
+              Docker Engine 25+ removed Docker API versions below 1.40, but the
+              docker-java client shaded inside Testcontainers 1.19.8 still defaults
+              to API 1.32. Without this, Testcontainers aborts with:
+                "client version 1.32 is too old. Minimum supported API version is 1.40"
+              Testcontainers reads this system property via DockerClientConfig (key
+              "api.version"). 1.44 is the highest version its RemoteApiVersion knows.
+            -->
+            <api.version>1.44</api.version>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
     </plugins>
   </build>

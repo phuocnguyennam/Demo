@@ -8,7 +8,9 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -63,14 +65,14 @@ public class ProfileController {
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam(value = "userId", required = false) Long userId) {
         AuthService.Principal me = authService.authenticate(authorization);
-        long targetId = userId == null ? me.getId() : userId;
+        long targetId = userId == null ? me.id() : userId;
         requireCanAccess(me, targetId);
 
         Map<String, Object> profile = loadProfile(targetId);
         if (profile == null) {
             return error(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ người dùng.");
         }
-        Map<String, Object> response = new LinkedHashMap<String, Object>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("profile", profile);
         return ResponseEntity.ok(response);
     }
@@ -84,20 +86,21 @@ public class ProfileController {
         if (!me.isAdmin()) {
             return error(HttpStatus.FORBIDDEN, "Chỉ admin mới được tìm kiếm người dùng.");
         }
-        String pattern = "%" + escapeLike(name.trim().toLowerCase()) + "%";
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT u.id, u.email, ui.name FROM users u JOIN user_info ui ON ui.id = u.id " +
-                "WHERE LOWER(ui.name) LIKE ? ESCAPE '\\' OR LOWER(u.email) LIKE ? ESCAPE '\\' " +
-                "ORDER BY ui.name, u.id LIMIT 20", pattern, pattern);
-        List<Map<String, Object>> users = new ArrayList<Map<String, Object>>();
+        String pattern = "%" + escapeLike(name.trim().toLowerCase(Locale.ROOT)) + "%";
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT u.id, u.email, ui.name FROM users u JOIN user_info ui ON ui.id = u.id
+                WHERE LOWER(ui.name) LIKE ? ESCAPE '\\' OR LOWER(u.email) LIKE ? ESCAPE '\\'
+                ORDER BY ui.name, u.id LIMIT 20
+                """, pattern, pattern);
+        List<Map<String, Object>> users = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            Map<String, Object> item = new LinkedHashMap<String, Object>();
+            Map<String, Object> item = new LinkedHashMap<>();
             item.put("id", ((Number) row.get("id")).longValue());
             item.put("email", row.get("email"));
             item.put("name", row.get("name"));
             users.add(item);
         }
-        Map<String, Object> response = new LinkedHashMap<String, Object>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("users", users);
         return ResponseEntity.ok(response);
     }
@@ -112,7 +115,7 @@ public class ProfileController {
             return error(HttpStatus.BAD_REQUEST, "Dữ liệu gửi lên không hợp lệ.");
         }
 
-        long parsedTargetId = me.getId();
+        long parsedTargetId = me.id();
         if (body.hasNonNull("userId")) {
             if (!body.get("userId").canConvertToLong() || !body.get("userId").isIntegralNumber()) {
                 return error(HttpStatus.BAD_REQUEST, "userId không hợp lệ.");
@@ -162,18 +165,17 @@ public class ProfileController {
             newRole = null;
         }
 
-        final boolean[] changed = new boolean[1];
-        final ResponseEntity<Map<String, Object>>[] failure = newFailureHolder();
-        transactionTemplate.execute(status -> {
+        record UpdateOutcome(boolean changed, ResponseEntity<Map<String, Object>> failure) {}
+
+        UpdateOutcome outcome = transactionTemplate.execute(status -> {
             Map<String, Object> current;
             try {
-                current = jdbcTemplate.queryForMap(
-                        "SELECT ui.name, ui.phone_number, r.role_name FROM user_info ui " +
-                        "JOIN roles r ON r.role_id = ui.user_role WHERE ui.id = ? FOR UPDATE OF ui",
-                        targetId);
+                current = jdbcTemplate.queryForMap("""
+                        SELECT ui.name, ui.phone_number, r.role_name FROM user_info ui
+                        JOIN roles r ON r.role_id = ui.user_role WHERE ui.id = ? FOR UPDATE OF ui
+                        """, targetId);
             } catch (EmptyResultDataAccessException notFound) {
-                failure[0] = error(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ người dùng.");
-                return null;
+                return new UpdateOutcome(false, error(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ người dùng."));
             }
 
             String oldName = (String) current.get("name");
@@ -184,45 +186,43 @@ public class ProfileController {
             if (!newName.equals(oldName)) {
                 addDiff(diff, "name", oldName, newName);
             }
-            if (!equalsNullable(newPhone, oldPhone)) {
+            if (!Objects.equals(newPhone, oldPhone)) {
                 addDiff(diff, "phone_number", oldPhone, newPhone);
             }
             if (newRole != null && !newRole.equals(oldRole)) {
                 if (!me.isAdmin()) {
-                    failure[0] = error(HttpStatus.FORBIDDEN, "Chỉ admin mới được thay đổi vai trò.");
-                    return null;
+                    return new UpdateOutcome(false, error(HttpStatus.FORBIDDEN, "Chỉ admin mới được thay đổi vai trò."));
                 }
-                if (me.getId() == targetId) {
-                    failure[0] = error(HttpStatus.BAD_REQUEST, "Admin không thể tự đổi vai trò của mình.");
-                    return null;
+                if (me.id() == targetId) {
+                    return new UpdateOutcome(false, error(HttpStatus.BAD_REQUEST, "Admin không thể tự đổi vai trò của mình."));
                 }
                 addDiff(diff, "role", oldRole, newRole);
             }
 
-            if (diff.size() == 0) {
-                return null;
+            if (diff.isEmpty()) {
+                return new UpdateOutcome(false, null);
             }
 
-            jdbcTemplate.update(
-                    "UPDATE user_info SET name = ?, phone_number = ?, " +
-                    "user_role = (SELECT role_id FROM roles WHERE role_name = ?) WHERE id = ?",
-                    newName, newPhone, newRole != null ? newRole : oldRole, targetId);
+            jdbcTemplate.update("""
+                    UPDATE user_info SET name = ?, phone_number = ?,
+                    user_role = (SELECT role_id FROM roles WHERE role_name = ?) WHERE id = ?
+                    """, newName, newPhone, newRole != null ? newRole : oldRole, targetId);
             // Chụp tên người thực hiện tại thời điểm chỉnh sửa để lịch sử không đổi khi họ đổi tên sau này.
-            String actorName = targetId == me.getId() ? oldName
-                    : jdbcTemplate.queryForObject("SELECT name FROM user_info WHERE id = ?", String.class, me.getId());
-            jdbcTemplate.update(
-                    "INSERT INTO edit_history (actor_user_id, actor_name, target_user_id, changed_fields) " +
-                    "VALUES (?, ?, ?, ?::jsonb)",
-                    me.getId(), actorName, targetId, diff.toString());
-            changed[0] = true;
-            return null;
+            String actorName = targetId == me.id() ? oldName
+                    : jdbcTemplate.queryForObject("SELECT name FROM user_info WHERE id = ?", String.class, me.id());
+            jdbcTemplate.update("""
+                    INSERT INTO edit_history (actor_user_id, actor_name, target_user_id, changed_fields)
+                    VALUES (?, ?, ?, ?::jsonb)
+                    """, me.id(), actorName, targetId, diff.toString());
+            return new UpdateOutcome(true, null);
         });
 
-        if (failure[0] != null) {
-            return failure[0];
+        if (outcome != null && outcome.failure() != null) {
+            return outcome.failure();
         }
-        Map<String, Object> response = new LinkedHashMap<String, Object>();
-        response.put("message", changed[0] ? "Cập nhật thông tin thành công!" : "Không có thay đổi nào.");
+        boolean changed = outcome != null && outcome.changed();
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("message", changed ? "Cập nhật thông tin thành công!" : "Không có thay đổi nào.");
         response.put("profile", loadProfile(targetId));
         return ResponseEntity.ok(response);
     }
@@ -242,13 +242,13 @@ public class ProfileController {
         int limit = limitParam == null ? DEFAULT_PAGE_SIZE : Math.max(1, Math.min(limitParam, MAX_PAGE_SIZE));
         int offset = offsetParam == null ? 0 : Math.max(0, offsetParam);
 
-        StringBuilder sql = new StringBuilder(
-                "SELECT h.history_id, h.actor_user_id, h.target_user_id, h.changed_fields::text AS changed_fields, " +
-                "h.edited_at, COALESCE(h.actor_name, actor.name) AS actor_name, target.name AS target_name " +
-                "FROM edit_history h " +
-                "LEFT JOIN user_info actor ON actor.id = h.actor_user_id " +
-                "LEFT JOIN user_info target ON target.id = h.target_user_id WHERE 1=1");
-        List<Object> params = new ArrayList<Object>();
+        StringBuilder sql = new StringBuilder("""
+                SELECT h.history_id, h.actor_user_id, h.target_user_id, h.changed_fields::text AS changed_fields,
+                h.edited_at, COALESCE(h.actor_name, actor.name) AS actor_name, target.name AS target_name
+                FROM edit_history h
+                LEFT JOIN user_info actor ON actor.id = h.actor_user_id
+                LEFT JOIN user_info target ON target.id = h.target_user_id WHERE 1=1""");
+        List<Object> params = new ArrayList<>();
         if (me.isAdmin()) {
             if (actorId != null) {
                 sql.append(" AND h.actor_user_id = ?");
@@ -261,7 +261,7 @@ public class ProfileController {
         } else {
             // Quyền được áp dụng ở máy chủ: bỏ qua targetId do client gửi.
             sql.append(" AND h.target_user_id = ?");
-            params.add(me.getId());
+            params.add(me.id());
             if (actorId != null) {
                 sql.append(" AND h.actor_user_id = ?");
                 params.add(actorId);
@@ -276,17 +276,17 @@ public class ProfileController {
         if (hasMore) {
             rows = rows.subList(0, limit);
         }
-        List<Map<String, Object>> items = new ArrayList<Map<String, Object>>();
+        List<Map<String, Object>> items = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            Map<String, Object> item = new LinkedHashMap<String, Object>();
+            Map<String, Object> item = new LinkedHashMap<>();
             item.put("id", ((Number) row.get("history_id")).longValue());
             item.put("actorId", ((Number) row.get("actor_user_id")).longValue());
             item.put("actorName", row.get("actor_name"));
             item.put("targetId", ((Number) row.get("target_user_id")).longValue());
             item.put("targetName", row.get("target_name"));
             Object editedAt = row.get("edited_at");
-            item.put("editedAt", editedAt instanceof Timestamp
-                    ? ((Timestamp) editedAt).toInstant().toString() : String.valueOf(editedAt));
+            item.put("editedAt", editedAt instanceof Timestamp ts
+                    ? ts.toInstant().toString() : String.valueOf(editedAt));
             try {
                 item.put("changedFields", objectMapper.readTree((String) row.get("changed_fields")));
             } catch (JsonProcessingException e) {
@@ -294,36 +294,37 @@ public class ProfileController {
             }
             items.add(item);
         }
-        Map<String, Object> response = new LinkedHashMap<String, Object>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("history", items);
         response.put("hasMore", hasMore);
         return ResponseEntity.ok(response);
     }
 
     private void requireCanAccess(AuthService.Principal me, long targetId) {
-        if (!me.isAdmin() && me.getId() != targetId) {
+        if (!me.isAdmin() && me.id() != targetId) {
             throw new AuthException(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập hồ sơ của người dùng khác.");
         }
     }
 
     private Map<String, Object> loadProfile(long userId) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT u.id, u.email, u.created_at, ui.name, ui.phone_number, r.role_name " +
-                "FROM users u JOIN user_info ui ON ui.id = u.id " +
-                "JOIN roles r ON r.role_id = ui.user_role WHERE u.id = ?", userId);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT u.id, u.email, u.created_at, ui.name, ui.phone_number, r.role_name
+                FROM users u JOIN user_info ui ON ui.id = u.id
+                JOIN roles r ON r.role_id = ui.user_role WHERE u.id = ?
+                """, userId);
         if (rows.isEmpty()) {
             return null;
         }
-        Map<String, Object> row = rows.get(0);
-        Map<String, Object> profile = new LinkedHashMap<String, Object>();
+        Map<String, Object> row = rows.getFirst();
+        Map<String, Object> profile = new LinkedHashMap<>();
         profile.put("id", ((Number) row.get("id")).longValue());
         profile.put("email", row.get("email"));
         profile.put("name", row.get("name"));
         profile.put("phoneNumber", row.get("phone_number"));
         profile.put("role", row.get("role_name"));
         Object createdAt = row.get("created_at");
-        profile.put("createdAt", createdAt instanceof Timestamp
-                ? ((Timestamp) createdAt).toInstant().toString()
+        profile.put("createdAt", createdAt instanceof Timestamp ts
+                ? ts.toInstant().toString()
                 : createdAt == null ? null : createdAt.toString());
         return profile;
     }
@@ -334,21 +335,12 @@ public class ProfileController {
         entry.put("after", after);
     }
 
-    private static boolean equalsNullable(String a, String b) {
-        return a == null ? b == null : a.equals(b);
-    }
-
     private static String escapeLike(String value) {
         return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
-    @SuppressWarnings("unchecked")
-    private static ResponseEntity<Map<String, Object>>[] newFailureHolder() {
-        return (ResponseEntity<Map<String, Object>>[]) new ResponseEntity[1];
-    }
-
     private static ResponseEntity<Map<String, Object>> error(HttpStatus status, String message) {
-        Map<String, Object> body = new LinkedHashMap<String, Object>();
+        Map<String, Object> body = new LinkedHashMap<>();
         body.put("error", message);
         return ResponseEntity.status(status).body(body);
     }

@@ -2,9 +2,9 @@ package com.demo.auth;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -19,9 +19,9 @@ public class DatabaseConfig {
             @Value("${DB_PORT:5432}") int port,
             @Value("${DB_USER:postgres}") String user,
             @Value("${DB_PASSWORD:postgres}") String password,
-            @Value("${DB_NAME:mydb}") String database) throws UnsupportedEncodingException {
+            @Value("${DB_NAME:mydb}") String database) {
         HikariConfig config = new HikariConfig();
-        if (databaseUrl != null && !databaseUrl.trim().isEmpty()) {
+        if (databaseUrl != null && !databaseUrl.isBlank()) {
             configureFromDatabaseUrl(config, databaseUrl.trim(), user, password);
         } else {
             config.setJdbcUrl("jdbc:postgresql://" + host + ":" + port + "/" + database);
@@ -32,8 +32,7 @@ public class DatabaseConfig {
     }
 
     private void configureFromDatabaseUrl(
-            HikariConfig config, String databaseUrl, String fallbackUser, String fallbackPassword)
-            throws UnsupportedEncodingException {
+            HikariConfig config, String databaseUrl, String fallbackUser, String fallbackPassword) {
         if (databaseUrl.startsWith("jdbc:")) {
             config.setJdbcUrl(databaseUrl);
             config.setUsername(fallbackUser);
@@ -62,9 +61,9 @@ public class DatabaseConfig {
         String password = fallbackPassword;
         if (uri.getRawUserInfo() != null) {
             String[] credentials = uri.getRawUserInfo().split(":", 2);
-            username = URLDecoder.decode(credentials[0].replace("+", "%2B"), "UTF-8");
+            username = URLDecoder.decode(credentials[0].replace("+", "%2B"), StandardCharsets.UTF_8);
             if (credentials.length == 2) {
-                password = URLDecoder.decode(credentials[1].replace("+", "%2B"), "UTF-8");
+                password = URLDecoder.decode(credentials[1].replace("+", "%2B"), StandardCharsets.UTF_8);
             }
         }
         config.setUsername(username);

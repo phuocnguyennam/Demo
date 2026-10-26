@@ -7,7 +7,7 @@ Tài liệu này mô tả cách thiết lập ứng dụng xác thực người 
 ## 1. Hướng Dẫn Thiết Lập (Setup Guide)
 
 ### 1.1. Yêu cầu môi trường (Prerequisites)
-- **Java JDK** (phiên bản 8 trở lên) & **Maven**
+- **Java JDK** (phiên bản 27 trở lên; backend biên dịch với Java 27) & **Maven**
 - **Node.js** (phiên bản 18 trở lên) & **npm** (dành cho frontend)
 - **Docker Desktop** (đang chạy, dùng để khởi tạo cơ sở dữ liệu PostgreSQL)
 
@@ -61,7 +61,17 @@ npm run dev
 ```
 > Ứng dụng web sẽ chạy tại `http://localhost:5173`. Mở trình duyệt để truy cập và sử dụng hệ thống.
 
-### 1.4. Quản lý mã nguồn trên Git
+### 1.4. Kiểm tra Backend và PostgreSQL bằng Testcontainers
+Docker Desktop phải đang chạy; các test tự tạo database PostgreSQL tạm và dọn container sau khi hoàn tất, không cần chạy `docker compose up`.
+
+Chạy từ thư mục gốc dự án:
+```powershell
+mvn -f backend\pom.xml test
+```
+
+`AuthenticationFlowIntegrationTest` khởi động ứng dụng Spring Boot và kiểm tra các luồng chính được mô tả trong FR-01 đến FR-04: đăng ký và xác thực đầu vào, đăng nhập/JWT, phân quyền hồ sơ, tìm người dùng admin, đổi vai trò và lọc/phân trang lịch sử. `PostgreSqlContainerSmokeTest` xác nhận riêng PostgreSQL khởi động và nhận truy vấn `SELECT 1`.
+
+### 1.5. Quản lý mã nguồn trên Git
 Thư mục `frontend/node_modules/` và các thư mục `dist/` được bỏ qua trong `.gitignore`, vì vậy Git sẽ không đưa các gói đã cài và tệp build sinh ra vào commit/push. Sau khi clone dự án, cài frontend và chạy backend Java bằng:
 
 ```bash

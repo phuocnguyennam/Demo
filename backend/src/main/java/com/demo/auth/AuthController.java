@@ -2,27 +2,27 @@ package com.demo.auth;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.sql.Timestamp;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.fasterxml.jackson.databind.JsonNode;
 
 @RestController
 @RequestMapping("/api")
@@ -33,7 +33,6 @@ public class AuthController {
     private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
     private final JwtService jwtService;
-
     private final TransactionTemplate transactionTemplate;
 
     public AuthController(JdbcTemplate jdbcTemplate, JwtService jwtService,
@@ -47,12 +46,12 @@ public class AuthController {
     public ResponseEntity<Map<String, Object>> health() {
         try {
             jdbcTemplate.queryForObject("SELECT 1", Integer.class);
-            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            Map<String, Object> response = new LinkedHashMap<>();
             response.put("status", "OK");
             response.put("database", "connected");
             return ResponseEntity.ok(response);
         } catch (DataAccessException error) {
-            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            Map<String, Object> response = new LinkedHashMap<>();
             response.put("status", "ERROR");
             response.put("database", "disconnected");
             response.put("details", error.getMessage());
@@ -65,7 +64,7 @@ public class AuthController {
         String email = textField(body, "email");
         String password = textField(body, "password");
         String confirmPassword = textField(body, "confirmPassword");
-        if (email == null || email.trim().isEmpty() || password == null || password.isEmpty()
+        if (email == null || email.isBlank() || password == null || password.isEmpty()
                 || confirmPassword == null || confirmPassword.isEmpty()) {
             return error(HttpStatus.BAD_REQUEST,
                     "Vui lòng điền đầy đủ email, mật khẩu và xác nhận mật khẩu.");
@@ -98,19 +97,20 @@ public class AuthController {
             final String passwordHash = passwordEncoder.encode(password);
             // Tạo tài khoản và hồ sơ mặc định trong cùng một giao dịch.
             Map<String, Object> savedUser = transactionTemplate.execute(status -> {
-                Map<String, Object> inserted = jdbcTemplate.queryForMap(
-                        "INSERT INTO users (email, password_hash) VALUES (?, ?) " +
-                        "RETURNING id, email, created_at",
-                        normalizedEmail, passwordHash);
-                jdbcTemplate.update(
-                        "INSERT INTO user_info (id, name, user_role) " +
-                        "VALUES (?, ?, (SELECT role_id FROM roles WHERE role_name = ?))",
+                Map<String, Object> inserted = jdbcTemplate.queryForMap("""
+                        INSERT INTO users (email, password_hash) VALUES (?, ?)
+                        RETURNING id, email, created_at
+                        """, normalizedEmail, passwordHash);
+                jdbcTemplate.update("""
+                        INSERT INTO user_info (id, name, user_role)
+                        VALUES (?, ?, (SELECT role_id FROM roles WHERE role_name = ?))
+                        """,
                         inserted.get("id"), normalizedEmail.substring(0, normalizedEmail.indexOf('@')),
                         roleName);
                 return inserted;
             });
             Map<String, Object> user = userResponse(savedUser);
-            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            Map<String, Object> response = new LinkedHashMap<>();
             response.put("message", "Đăng ký tài khoản thành công!");
             response.put("user", user);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -128,7 +128,7 @@ public class AuthController {
     public ResponseEntity<Map<String, Object>> login(@RequestBody(required = false) JsonNode body) {
         String email = textField(body, "email");
         String password = textField(body, "password");
-        if (email == null || email.trim().isEmpty() || password == null || password.isEmpty()) {
+        if (email == null || email.isBlank() || password == null || password.isEmpty()) {
             return error(HttpStatus.BAD_REQUEST, "Vui lòng nhập cả email và mật khẩu.");
         }
 
@@ -148,12 +148,12 @@ public class AuthController {
 
             long userId = ((Number) user.get("id")).longValue();
             String userEmail = (String) user.get("email");
-            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            Map<String, Object> response = new LinkedHashMap<>();
             response.put("message", "Đăng nhập thành công!");
             response.put("token", jwtService.createToken(userId, userEmail));
             response.put("user", userResponse(user));
             return ResponseEntity.ok(response);
-        } catch (org.springframework.dao.EmptyResultDataAccessException error) {
+        } catch (EmptyResultDataAccessException error) {
             return error(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không chính xác.");
         } catch (DataAccessException error) {
             System.err.println("Lỗi khi đăng nhập: " + error.getMessage());
@@ -166,7 +166,7 @@ public class AuthController {
     public ResponseEntity<Map<String, Object>> currentUser(
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         String token = authorization == null ? null : tokenFromHeader(authorization);
-        if (token == null || token.isEmpty()) {
+        if (token == null || token.isBlank()) {
             return error(HttpStatus.UNAUTHORIZED, "Không tìm thấy token xác thực.");
         }
 
@@ -184,10 +184,10 @@ public class AuthController {
         try {
             Map<String, Object> user = jdbcTemplate.queryForMap(
                     "SELECT id, email, created_at FROM users WHERE id = ?", userId);
-            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            Map<String, Object> response = new LinkedHashMap<>();
             response.put("user", userResponse(user));
             return ResponseEntity.ok(response);
-        } catch (org.springframework.dao.EmptyResultDataAccessException error) {
+        } catch (EmptyResultDataAccessException error) {
             return error(HttpStatus.NOT_FOUND, "Người dùng không tồn tại.");
         } catch (DataAccessException error) {
             System.err.println("Lỗi khi lấy thông tin người dùng: " + error.getMessage());
@@ -228,18 +228,21 @@ public class AuthController {
     private static boolean hasUnicodePunctuationOrSymbol(String value) {
         for (int offset = 0; offset < value.length();) {
             int codePoint = value.codePointAt(offset);
-            int type = Character.getType(codePoint);
-            if (type == Character.CONNECTOR_PUNCTUATION
-                    || type == Character.DASH_PUNCTUATION
-                    || type == Character.START_PUNCTUATION
-                    || type == Character.END_PUNCTUATION
-                    || type == Character.INITIAL_QUOTE_PUNCTUATION
-                    || type == Character.FINAL_QUOTE_PUNCTUATION
-                    || type == Character.OTHER_PUNCTUATION
-                    || type == Character.MATH_SYMBOL
-                    || type == Character.CURRENCY_SYMBOL
-                    || type == Character.MODIFIER_SYMBOL
-                    || type == Character.OTHER_SYMBOL) {
+            boolean isPunctuationOrSymbol = switch (Character.getType(codePoint)) {
+                case Character.CONNECTOR_PUNCTUATION,
+                        Character.DASH_PUNCTUATION,
+                        Character.START_PUNCTUATION,
+                        Character.END_PUNCTUATION,
+                        Character.INITIAL_QUOTE_PUNCTUATION,
+                        Character.FINAL_QUOTE_PUNCTUATION,
+                        Character.OTHER_PUNCTUATION,
+                        Character.MATH_SYMBOL,
+                        Character.CURRENCY_SYMBOL,
+                        Character.MODIFIER_SYMBOL,
+                        Character.OTHER_SYMBOL -> true;
+                default -> false;
+            };
+            if (isPunctuationOrSymbol) {
                 return true;
             }
             offset += Character.charCount(codePoint);
@@ -248,18 +251,18 @@ public class AuthController {
     }
 
     private static Map<String, Object> userResponse(Map<String, Object> row) {
-        Map<String, Object> user = new LinkedHashMap<String, Object>();
+        Map<String, Object> user = new LinkedHashMap<>();
         user.put("id", ((Number) row.get("id")).longValue());
         user.put("email", row.get("email"));
         Object createdAt = row.get("created_at");
-        user.put("createdAt", createdAt instanceof Timestamp
-                ? ((Timestamp) createdAt).toInstant().toString()
+        user.put("createdAt", createdAt instanceof Timestamp ts
+                ? ts.toInstant().toString()
                 : createdAt == null ? null : createdAt.toString());
         return user;
     }
 
     private static ResponseEntity<Map<String, Object>> error(HttpStatus status, String message) {
-        Map<String, Object> body = new LinkedHashMap<String, Object>();
+        Map<String, Object> body = new LinkedHashMap<>();
         body.put("error", message);
         return ResponseEntity.status(status).body(body);
     }

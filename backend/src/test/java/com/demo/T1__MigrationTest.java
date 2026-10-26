@@ -1,29 +1,37 @@
 package com.demo;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.Set;
 import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.AfterAll;
+import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-class ConnectionTest {
+class T1MigrationTest {
+
   @Container
   static final PostgreSQLContainer<?> postgresContainer =
-      new PostgreSQLContainer<>("postgres:14")
+      new PostgreSQLContainer<>("postgres:16-alpine")
           .withDatabaseName("testdb")
           .withUsername("testuser")
           .withPassword("testpass");
+
+  private static MigrateResult migrateResult;
 
   @BeforeAll
   static void migrateDatabase() {
@@ -34,95 +42,108 @@ class ConnectionTest {
                 postgresContainer.getUsername(),
                 postgresContainer.getPassword())
             .load();
-    flyway.migrate();
+    migrateResult = flyway.migrate();
   }
 
-  // Helper Function
-  private Connection openConnection() throws Exception {
+  private Connection openConnection() throws SQLException {
     return DriverManager.getConnection(
         postgresContainer.getJdbcUrl(),
         postgresContainer.getUsername(),
         postgresContainer.getPassword());
   }
 
-  // Helper Function
   private boolean exists(String sql, String name) throws SQLException {
     try (Connection connection = openConnection();
-      PreparedStatement statement = connection.prepareStatement(sql)) {
-        statement.setString(1, name);
-
-        try (ResultSet result = statement.executeQuery()) {
-          return result.next();
-      }
-    } catch (Exception e) {
-      return false;
-    }
-  }
-
-  @Test
-  void migrationCreatesAllTables() throws Exception {
-    try (Connection connection =
-        DriverManager.getConnection(
-            postgresContainer.getJdbcUrl(),
-            postgresContainer.getUsername(),
-            postgresContainer.getPassword())) {
-
-      String sql =
-          "SELECT table_name "
-              + "FROM information_schema.tables "
-              + "WHERE table_schema = 'public'";
-
-      try (Statement statement = connection.createStatement();
-          ResultSet result = statement.executeQuery(sql)) {
-
-        java.util.Set<String> tables = new java.util.HashSet<>();
-
-        while (result.next()) {
-          tables.add(result.getString("table_name"));
-        }
-
-        assertAll(
-            () -> assertTrue(tables.contains("users")),
-            () -> assertTrue(tables.contains("roles")),
-            () -> assertTrue(tables.contains("user_info")),
-            () -> assertTrue(tables.contains("edit_history")));
+        var statement = connection.prepareStatement(sql)) {
+      statement.setString(1, name);
+      try (ResultSet result = statement.executeQuery()) {
+        return result.next();
       }
     }
   }
 
+  // @Test
+  // @DisplayName("Flyway applies both migrations and ends at version 2")
+  // void migrationAppliesBothVersions() {
+  //   assertEquals(2, migrateResult.migrationsExecuted, "expected V1 and V2 to be applied");
+  //   assertEquals("2", migrateResult.targetSchemaVersion, "schema should end at version 2");
+  // }
+
   @Test
-  void migrationCreatesForeignKeys() throws Exception {
+  @DisplayName("Migration creates all four application tables")
+  void migrationCreatesAllTables() throws SQLException {
     String sql =
-        "SELECT constraint_name"
-            + " FROM information_schema.table_constraints"
+        "SELECT table_name FROM information_schema.tables"
+            + " WHERE table_schema = 'public' AND table_name = ?";
+
+    Set<String> present = new HashSet<>();
+    for (String table : new String[] {"users", "roles", "user_info", "edit_history"}) {
+      if (exists(sql, table)) {
+        present.add(table);
+      }
+    }
+
+    assertAll(
+        () -> assertTrue(present.contains("users"), "users missing"),
+        () -> assertTrue(present.contains("roles"), "roles missing"),
+        () -> assertTrue(present.contains("user_info"), "user_info missing"),
+        () -> assertTrue(present.contains("edit_history"), "edit_history missing"));
+  }
+
+  @Test
+  @DisplayName("Migration creates the four foreign keys")
+  void migrationCreatesForeignKeys() throws SQLException {
+    String sql =
+        "SELECT constraint_name FROM information_schema.table_constraints"
             + " WHERE constraint_schema = 'public'"
             + " AND constraint_type = 'FOREIGN KEY'"
             + " AND constraint_name = ?";
 
     assertAll(
-        () -> assertTrue(exists(sql, "fk_user_info_user")),
-        () -> assertTrue(exists(sql, "fk_user_info_role")),
-        () -> assertTrue(exists(sql, "fk_edit_history_actor")),
-        () -> assertTrue(exists(sql, "fk_edit_history_target")));
+        () -> assertTrue(exists(sql, "fk_user_info_user"), "fk_user_info_user missing"),
+        () -> assertTrue(exists(sql, "fk_user_info_role"), "fk_user_info_role missing"),
+        () -> assertTrue(exists(sql, "fk_edit_history_actor"), "fk_edit_history_actor missing"),
+        () -> assertTrue(exists(sql, "fk_edit_history_target"), "fk_edit_history_target missing"));
   }
 
   @Test
-  void migrationCreatesIndexes() throws Exception {
-    String sql = 
-        "SELECT indexname "
-            + "FROM pg_indexes "
-            + "WHERE schemaname = 'public' "
-            + "AND indexname = ?";
+  @DisplayName("Migration creates the two history indexes")
+  void migrationCreatesIndexes() throws SQLException {
+    String sql =
+        "SELECT indexname FROM pg_indexes"
+            + " WHERE schemaname = 'public' AND indexname = ?";
 
     assertAll(
-        () -> assertTrue(exists(sql, "idx_edit_history_actor_time")),
-        () -> assertTrue(exists(sql, "idx_edit_history_target_time")));
+        () -> assertTrue(exists(sql, "idx_edit_history_actor_time"), "actor index missing"),
+        () -> assertTrue(exists(sql, "idx_edit_history_target_time"), "target index missing"));
   }
 
-  @AfterAll 
-  static void closeContainer() {
-    postgresContainer.stop();
-    postgresContainer.close(); 
+  // @Test
+  // @DisplayName("V2 seeds exactly the user and admin roles")
+  // void migrationSeedsRoles() throws SQLException {
+  //   Set<String> roleNames = new HashSet<>();
+  //   try (Connection connection = openConnection();
+  //       Statement statement = connection.createStatement();
+  //       ResultSet result = statement.executeQuery("SELECT role_name FROM roles")) {
+  //     while (result.next()) {
+  //       roleNames.add(result.getString("role_name"));
+  //     }
+  //   }
+  //
+  //   assertEquals(Set.of("user", "admin"), roleNames);
+  // }
+
+  // ---------------------------------------------------------------------------
+  // Negative checkpoint: proves the helper above can return false, so a green
+  // run of the tests above actually means something.
+  // ---------------------------------------------------------------------------
+  @Test
+  @DisplayName("A table that was never created is reported as absent")
+  void absentTableIsDetected() throws SQLException {
+    String sql =
+        "SELECT table_name FROM information_schema.tables"
+            + " WHERE table_schema = 'public' AND table_name = ?";
+
+    assertFalse(exists(sql, "does_not_exist"), "helper must return false for a missing table");
   }
 }
-

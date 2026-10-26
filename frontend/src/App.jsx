@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Dashboard from './Dashboard.jsx';
 
 // Regex kiểm tra định dạng email theo chuẩn phổ thông
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
@@ -253,7 +254,7 @@ export default function App() {
   if (view === 'hello' && currentUser) {
     return (
       <div className="app-container">
-        <div className="card hello-card">
+        <div className="card hello-card wide-card">
           <div className="hello-icon">👋</div>
           <h1 className="hello-title">Hello, {currentUser.email}!</h1>
           <p className="hello-subtitle">
@@ -282,6 +283,8 @@ export default function App() {
               <span className="badge-online">Đang hoạt động</span>
             </div>
           </div>
+
+          <Dashboard />
 
           <button className="btn btn-danger" onClick={handleLogout}>
             Đăng xuất

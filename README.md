@@ -27,7 +27,10 @@ Tạo các tệp `.env` trong thư mục gốc và `backend/`. Các giá trị b
   PORT=5000
   JWT_SECRET=replace_with_a_random_secret
   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mydb
+  ADMIN_EMAIL=admin@example.com
   ```
+  `ADMIN_EMAIL` và `ADMIN_PASSWORD` (tùy chọn, mặc định `admin@example.com` / `Admin@123456`): khi backend khởi động mà trong cơ sở dữ liệu chưa có tài khoản `admin` nào, hệ thống tự tạo tài khoản admin đầu tiên với thông tin này (nếu email đã tồn tại thì tài khoản đó được nâng lên `admin`). Hãy đổi mật khẩu mặc định trước khi dùng ở môi trường dùng chung. Đăng ký thông thường luôn tạo role `user`; một `user` chỉ trở thành `admin` khi một admin sửa role của họ thành `admin` (FR-03).
+
   Thay `JWT_SECRET` bằng chuỗi ngẫu nhiên đủ mạnh, ví dụ tạo bằng `openssl rand -hex 32`. Backend sẽ không khởi động nếu thiếu `JWT_SECRET`. Nếu thiết lập đồng thời `DATABASE_URL` và các biến `DB_*`, `DATABASE_URL` được ưu tiên.
 
 ---
@@ -99,7 +102,7 @@ Thư mục `frontend/dist/` sẽ được tạo lại khi chạy `npm run build`
   * Giá trị tại ô xác nhận mật khẩu phải trùng khớp hoàn toàn với mật khẩu đã nhập.
 
 #### 3. Quy tắc xử lý và bảo mật:
-* Mật khẩu được băm bằng thư viện `bcryptjs` (salt rounds = 10) trước khi lưu; ứng dụng không lưu mật khẩu dạng văn bản thuần.
+* Mật khẩu được băm bằng `BCryptPasswordEncoder` của Spring Security (bcrypt, cost = 10) trước khi lưu; ứng dụng không lưu mật khẩu dạng văn bản thuần.
 * Khi đăng ký thành công:
   * Tạo bản ghi người dùng mới trong bảng `users` của PostgreSQL.
   * Trả về HTTP status `201 Created`.
@@ -119,7 +122,7 @@ Thư mục `frontend/dist/` sẽ được tạo lại khi chạy `npm run build`
 
 #### 3. Quy tắc đối chiếu và quản lý phiên (Authentication & Session):
 * **Xác thực tài khoản**:
-  * Tìm kiếm tài khoản theo email đã chuẩn hóa. Nếu không tìm thấy hoặc mật khẩu không khớp (so sánh bằng `bcrypt.compare`), hệ thống từ chối đăng nhập và trả về thông báo lỗi chung.
+  * Tìm kiếm tài khoản theo email đã chuẩn hóa. Nếu không tìm thấy hoặc mật khẩu không khớp (xác minh bằng `BCryptPasswordEncoder.matches`), hệ thống từ chối đăng nhập và trả về thông báo lỗi chung.
 * **Cấp phát token xác thực**:
   * Khi đăng nhập thành công, máy chủ cấp JWT (JSON Web Token) có thời hạn 24 giờ.
   * Frontend lưu token trong `localStorage` với khóa `auth_token` và gọi API để khôi phục phiên khi tải lại trang. `localStorage` có thể bị đọc bởi JavaScript chạy cùng origin; đây là lựa chọn lưu trữ của ứng dụng mẫu, không nên coi là an toàn tuyệt đối hoặc dùng thay cho đánh giá bảo mật.
@@ -137,7 +140,8 @@ Thư mục `frontend/dist/` sẽ được tạo lại khi chạy `npm run build`
 
 #### 2. Quyền xem và chỉnh sửa:
 * **Role `user`**: Chỉ được xem và chỉnh sửa thông tin hồ sơ của chính mình.
-* **Role `admin`**: Có ô nhập tên người dùng để tìm/chọn người dùng khác, sau đó có thể xem và chỉnh sửa thông tin hồ sơ của người đó.
+* **Role `admin`**: Có ô nhập tên người dùng để tìm/chọn người dùng khác, sau đó có thể xem và chỉnh sửa thông tin hồ sơ của người đó, kể cả đổi role của họ (`user` ↔ `admin`). Admin không thể tự đổi role của chính mình.
+* **Tài khoản admin đầu tiên** được tạo sẵn trong cơ sở dữ liệu khi backend khởi động (xem mục 1.2). Đăng ký thông thường luôn có role `user`; chỉ admin mới có thể nâng một `user` thành `admin`.
 * Máy chủ phải xác thực quyền trên mỗi yêu cầu; không chỉ dựa vào giao diện để ngăn người dùng sửa hồ sơ của người khác.
 
 ---
@@ -153,6 +157,8 @@ Thư mục `frontend/dist/` sẽ được tạo lại khi chạy `npm run build`
 * **Role `user`**: Chỉ được xem lịch sử của chính mình, bao gồm cả các thay đổi do admin thực hiện cho tài khoản đó; lịch sử hiển thị tên người thực hiện.
 * **Role `admin`**: Được xem lịch sử của tất cả người dùng và có thể lọc theo **người thực hiện** và/hoặc **người được chỉnh sửa**.
 * Máy chủ phải áp dụng quyền và điều kiện lọc trên mỗi yêu cầu; không chỉ dựa vào giao diện để giới hạn dữ liệu.
+* Lịch sử được phân trang (`limit` mặc định 50, tối đa 100; `offset`), sắp xếp mới nhất trước; giao diện có nút **Tải thêm** để xem các bản ghi cũ hơn. Nếu tải lịch sử thất bại, giao diện hiển thị lỗi kèm nút **Thử lại** thay vì báo "chưa có lịch sử".
+* Tên người thực hiện được lưu vào `edit_history.actor_name` tại thời điểm chỉnh sửa, nên không đổi khi họ đổi tên sau này (bản ghi cũ không có `actor_name` sẽ dùng tên hiện tại). Tên người được chỉnh sửa luôn là tên hiện tại.
 
 ---
 
@@ -183,6 +189,7 @@ CREATE TABLE user_info (
 CREATE TABLE edit_history (
     history_id SERIAL PRIMARY KEY,
     actor_user_id INTEGER NOT NULL,
+    actor_name VARCHAR(255),
     target_user_id INTEGER NOT NULL,
     changed_fields JSONB NOT NULL,
     edited_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP

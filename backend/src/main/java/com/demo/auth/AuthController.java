@@ -7,6 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -31,9 +34,13 @@ public class AuthController {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
     private final JwtService jwtService;
 
-    public AuthController(JdbcTemplate jdbcTemplate, JwtService jwtService) {
+    private final TransactionTemplate transactionTemplate;
+
+    public AuthController(JdbcTemplate jdbcTemplate, JwtService jwtService,
+            PlatformTransactionManager transactionManager) {
         this.jdbcTemplate = jdbcTemplate;
         this.jwtService = jwtService;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @GetMapping("/health")
@@ -87,10 +94,21 @@ public class AuthController {
                         "Email này đã được sử dụng. Vui lòng chọn một email khác.");
             }
 
-            Map<String, Object> savedUser = jdbcTemplate.queryForMap(
-                    "INSERT INTO users (email, password_hash) VALUES (?, ?) " +
-                    "RETURNING id, email, created_at",
-                    normalizedEmail, passwordEncoder.encode(password));
+            final String roleName = "user";
+            final String passwordHash = passwordEncoder.encode(password);
+            // Tạo tài khoản và hồ sơ mặc định trong cùng một giao dịch.
+            Map<String, Object> savedUser = transactionTemplate.execute(status -> {
+                Map<String, Object> inserted = jdbcTemplate.queryForMap(
+                        "INSERT INTO users (email, password_hash) VALUES (?, ?) " +
+                        "RETURNING id, email, created_at",
+                        normalizedEmail, passwordHash);
+                jdbcTemplate.update(
+                        "INSERT INTO user_info (id, name, user_role) " +
+                        "VALUES (?, ?, (SELECT role_id FROM roles WHERE role_name = ?))",
+                        inserted.get("id"), normalizedEmail.substring(0, normalizedEmail.indexOf('@')),
+                        roleName);
+                return inserted;
+            });
             Map<String, Object> user = userResponse(savedUser);
             Map<String, Object> response = new LinkedHashMap<String, Object>();
             response.put("message", "Đăng ký tài khoản thành công!");

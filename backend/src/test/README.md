@@ -8,14 +8,27 @@ Tài liệu này hướng dẫn cách chạy các bộ kiểm thử tự động
 
 ```text
 backend/src/test/
-├── README.md                                        # Tài liệu hướng dẫn thực thi & luồng kiểm thử
+├── README.md                                                  # Tài liệu hướng dẫn thực thi & luồng kiểm thử
 ├── java/com/demo/auth/
-│   ├── RegistrationFakerDbUnitTest.java             # Kiểm thử FR-01 (EP & BVA: TC01 -> TC17) với Datafaker + DbUnit
-│   ├── AuthenticationFlowIntegrationTest.java       # Kiểm thử luồng E2E từ FR-01 đến FR-04
-│   └── PostgreSqlContainerSmokeTest.java            # Smoke test kiểm tra kết nối container PostgreSQL
+│   ├── AbstractDbUnitTestSupport.java                         # Lớp cơ sở dùng chung cho các test DbUnit (hỗ trợ JSONB)
+│   ├── FR_Register_Test.java                                  # Kiểm thử FR-01 (EP & BVA: TC01 -> TC17) kế thừa lớp cơ sở
+│   ├── demo_testcontainer/                                    # Nhóm kịch bản demo/kiểm tra kết nối Testcontainers cơ bản
+│   │   └── PostgreSqlContainerSmokeTest.java                  # Smoke test kiểm tra khởi tạo container PostgreSQL & SELECT 1
+│   └── demo_dbunit/                                           # Nhóm 4 kịch bản trình diễn tính năng & điểm yếu của DbUnit
+│       ├── DbUnitDemo01SetupAndSeedingTest.java               # Demo 01: Cài đặt kết nối & Nạp dữ liệu mẫu (Data Seeding)
+│       ├── DbUnitDemo02BasicCrudVerificationTest.java         # Demo 02: Kiểm thử CRUD cơ bản (Faker -> API -> DbUnit)
+│       ├── DbUnitDemo03ComplexBusinessFlowTest.java           # Demo 03: Luồng nghiệp vụ đa tác nhân & Phân quyền RBAC
+│       └── DbUnitDemo04LimitationsAndWeaknessesTest.java      # Demo 04: Minh họa 4 điểm yếu thực tế của DbUnit & Cách xử lý
 └── resources/datasets/
-    ├── expected-register-success.xml                # Mẫu DbUnit XML động khi đăng ký thành công (201 Created)
-    └── expected-register-unchanged.xml              # Mẫu DbUnit XML khi đăng ký thất bại (400 Bad Request)
+    ├── expected-register-success.xml                          # Dataset của RegistrationFakerDbUnitTest (201 Created)
+    ├── expected-register-unchanged.xml                        # Dataset của RegistrationFakerDbUnitTest (400 Bad Request)
+    └── demo_dbunit/                                           # Thư mục chứa Dataset XML riêng cho nhóm demo_dbunit
+        ├── demo01-seed-users.xml                              # Seed 2 người dùng mẫu bằng DatabaseOperation.REFRESH
+        ├── expected-register.xml                              # Dataset kỳ vọng khi đăng ký mới (Demo 02)
+        ├── expected-profile-update.xml                        # Dataset kỳ vọng khi cập nhật hồ sơ (Demo 02)
+        ├── demo03-expected-complex-flow.xml                   # Dataset kỳ vọng cho luồng đa tác nhân (Demo 03)
+        ├── demo04-column-sensing-trap.xml                     # Dataset minh họa bẫy Column Sensing (Demo 04)
+        └── demo05-data-driven-cases.xml                       # Dataset mẫu cho kịch bản Data-Driven
 ```
 
 ---
@@ -25,27 +38,27 @@ backend/src/test/
 ### 2.1. Yêu cầu trước khi chạy
 1. **Java JDK 27+** và **Maven** đã được cài đặt trong `PATH`.
 2. **Docker Desktop** phải đang mở và ở trạng thái hoạt động (`Running`).
-   > *Lưu ý:* Bạn **không** cần chạy `docker compose up` thủ công. **Testcontainers** sẽ tự động khởi tạo một container `postgres:16-alpine` riêng biệt cho quá trình test và tự động xóa container đó sau khi chạy xong.
+   > *Lưu ý:* Bạn **không** cần chạy `docker compose up` thủ công. **Testcontainers** sẽ tự động khởi tạo container `postgres:16-alpine` riêng biệt cho quá trình test và tự động xóa container đó sau khi chạy xong.
 
 ### 2.2. Các lệnh chạy kiểm thử (chạy từ thư mục gốc `Demo/`)
-
-* **Chạy riêng bộ kiểm thử Đăng ký với Datafaker & DbUnit (`TC01` → `TC17`):**
-  ```powershell
-  mvn -f backend\pom.xml -Dtest=RegistrationFakerDbUnitTest test
-  ```
 
 * **Chạy toàn bộ các lớp kiểm thử trong dự án:**
   ```powershell
   mvn -f backend\pom.xml test
   ```
 
-* **Chạy riêng kiểm thử luồng tích hợp FR-01 → FR-04:**
+* **Chạy riêng bộ kiểm thử Đăng ký EP & BVA với Datafaker & DbUnit (`TC01` → `TC17`):**
   ```powershell
-  mvn -f backend\pom.xml -Dtest=AuthenticationFlowIntegrationTest test
+  mvn -f backend\pom.xml -Dtest=FR_Register_Test test
+  ```
+
+* **Chạy riêng nhóm 4 kịch bản Demo DbUnit trong thư mục `demo_dbunit`:**
+  ```powershell
+  mvn -f backend\pom.xml "-Dtest=com.demo.auth.demo_dbunit.*Test" test
   ```
 
 ### 2.3. Xem báo cáo dữ liệu Faker và bảng Database sau khi chạy test
-Vì Testcontainers tự động dọn dẹp container PostgreSQL ngay khi test kết thúc, lớp `RegistrationFakerDbUnitTest` đã tự động chụp (snapshot) và xuất toàn bộ dữ liệu của 17 kịch bản (`TC01` → `TC17`) ra 2 nơi:
+Vì Testcontainers tự động dọn dẹp container PostgreSQL ngay khi test kết thúc, lớp `FR_Register_Test` đã tự động chụp (snapshot) và xuất toàn bộ dữ liệu của 17 kịch bản (`TC01` → `TC17`) ra 2 nơi:
 1. **Console Log** trên màn hình terminal khi chạy lệnh Maven.
 2. **Tệp báo cáo UTF-8 cố định** tại:
    ```text
@@ -59,47 +72,59 @@ Vì Testcontainers tự động dọn dẹp container PostgreSQL ngay khi test k
 
 ---
 
-## 3. Luồng Thực Thi Kiểm Thử (`RegistrationFakerDbUnitTest`)
-### Giải thích chi tiết 6 bước trong luồng thực thi
+## 3. Luồng Thực Thi Kiểm Thử (`FR_Register_Test`)
 
-#### Bước 1: Khởi tạo hạ tầng cô lập với Testcontainers
-* Khi lớp test bắt đầu, `@Container PostgreSQLContainer<?>` dựng một container `postgres:16-alpine`.
-* `@DynamicPropertySource` truyền động chuỗi kết nối `DATABASE_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `ADMIN_EMAIL` vào Spring Context.
-* `DatabaseInitializer` tự động chạy để khởi tạo 4 bảng (`users`, `roles`, `user_info`, `edit_history`), nạp 2 vai trò (`user` với `role_id = 1`, `admin` với `role_id = 2`) và tạo sẵn tài khoản Admin đầu tiên (`id = 1`, `email = admin@example.com`).
+### 3.1. Sơ đồ luồng tổng thể
 
-#### Bước 2: Thiết lập trạng thái sạch trước mỗi kịch bản (`@BeforeEach`)
-* Để các test case hoàn toàn độc lập với nhau, hàm `setUpDbUnit()` chạy trước mỗi kịch bản sẽ xóa các bản ghi phát sinh từ test trước (`DELETE FROM user_info WHERE id > 1; DELETE FROM users WHERE id > 1;`), đưa DB về đúng 1 dòng gốc (`id = 1` của Admin).
-* Mở kết nối `IDatabaseConnection` của **DbUnit** với cấu hình `PostgresqlDataTypeFactory`.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant JUnit as JUnit 5 (@ParameterizedTest)
+    participant Faker as Datafaker (EP & BVA)
+    participant API as Backend API (/api/register)
+    participant PG as PostgreSQL (Testcontainers)
+    participant DbUnit as DbUnit (ReplacementDataSet)
+    participant Report as Log & faker-dbunit-report.log
 
-#### Bước 3: Sinh dữ liệu đầu vào động bằng Datafaker (Áp dụng EP & BVA)
-* Thay vì gõ cứng dữ liệu tĩnh, **Datafaker** (`net.datafaker.Faker`) dùng `faker.internet().emailAddress()` và `faker.regexify(...)` để sinh dữ liệu ngẫu nhiên nhưng vẫn tuân thủ chặt chẽ từng phân vùng tương đương (**EP**) và giá trị biên (**BVA**):
-  * Biên độ dài mật khẩu: `7` (`Min - 1`), `8` (`Min`), `9` (`Min + 1`), `31` (`Max - 1`), `32` (`Max`), `33` (`Max + 1`).
-  * Các phân vùng thiếu chữ hoa, thiếu chữ số, thiếu ký tự đặc biệt, dùng chữ Unicode có dấu (`ăêôđ`), sai định dạng email, trùng email, lệch mật khẩu xác nhận, rỗng/khoảng trắng, sai kiểu dữ liệu.
+    Note over JUnit,PG: Khởi tạo Container PostgreSQL 16 & chạy DatabaseInitializer (Seed roles + Admin id=1)
+    loop Duyệt tuần tự từng kịch bản TC01 -> TC17 (@Order 1..4)
+        JUnit->>PG: @BeforeEach: Xóa dữ liệu cũ (id > 1), đưa DB về trạng thái chuẩn (chỉ có Admin id=1)
+        Faker->>JUnit: Sinh dữ liệu động (email, password, confirmPassword) theo quy tắc EP / BVA
+        JUnit->>API: POST /api/register (JSON Payload)
+        alt Kịch bản Hợp lệ (TC01 -> TC06)
+            API->>PG: INSERT INTO users & INSERT INTO user_info (Transaction)
+            API-->>JUnit: HTTP 201 Created { message, user: { id, email, createdAt } }
+            JUnit->>DbUnit: Nạp expected-register-success.xml & gán [EXPECTED_ID], [EXPECTED_EMAIL], [EXPECTED_NAME]
+        else Kịch bản Không hợp lệ / Trùng Email (TC07 -> TC17)
+            API-->>JUnit: HTTP 400 Bad Request hoặc 409 Conflict { error }
+            JUnit->>DbUnit: Nạp expected-register-unchanged.xml (hoặc giữ nguyên bản ghi cũ ở TC14)
+        end
+        DbUnit->>PG: Đọc Actual Dataset (bảng users & user_info thực tế)
+        DbUnit->>Report: Xuất bảng ASCII (Payload + Response + Expected Table + Actual Table)
+        DbUnit->>JUnit: So khớp bảng bằng Assertion.assertEquals (lọc password_hash, created_at) & kiểm tra BCrypt
+    end
+```
 
-#### Bước 4: Gửi Request đến Backend API & Kiểm tra HTTP Response
-* Sử dụng `TestRestTemplate` gửi `POST /api/register` tới cổng ngẫu nhiên (`@LocalServerPort`) của máy chủ Spring Boot nhúng.
-* Kiểm tra mã trạng thái HTTP (`201 Created`, `400 Bad Request` hoặc `409 Conflict`) và thông điệp phản hồi.
+### 3.2. Giải thích chi tiết 6 bước trong luồng thực thi
 
-#### Bước 5: Tạo Bảng Kết Quả Mong Đợi Động (Dynamic Expected Dataset) trong DbUnit
-* Vì `email`, `id`, `name` được sinh động ở Bước 3 & 4, DbUnit sử dụng `ReplacementDataSet` nạp tệp mẫu XML (`expected-register-success.xml`) và thay thế các placeholder ngay tại runtime:
-  * `[EXPECTED_ID]` $\leftarrow$ `response.body.user.id`
-  * `[EXPECTED_EMAIL]` $\leftarrow$ `rawEmail.trim().toLowerCase()`
-  * `[EXPECTED_NAME]` $\leftarrow$ phần đứng trước dấu `@` của `expectedEmail`
-  * `[EXPECTED_ROLE_ID]` $\leftarrow$ `1` (vai trò `user`)
-  * `[NULL]` $\leftarrow$ `null` (cho cột `phone_number`)
-
-#### Bước 6: Ghi Log Báo Cáo & Đối Chiếu Trạng Thái Database bằng DbUnit
-* **Ghi log (`logTestSnapshot`)**: Trích xuất dữ liệu từ `ITable` của DbUnit và vẽ bảng ASCII ra console cùng tệp `backend/target/faker-dbunit-report.log`.
-* **Xử lý các cột không tiền định (`password_hash`, `created_at`)**:
-  * Dùng `DefaultColumnFilter.excludedColumnsTable(actualUsersTable, new String[]{"password_hash", "created_at"})` để loại 2 cột sinh ngẫu nhiên khỏi phép so sánh XML của DbUnit.
-  * Kiểm tra riêng cột `password_hash` bằng `BCryptPasswordEncoder.matches(rawPassword, actualPasswordHash)` và kiểm tra `created_at != null`.
-* **So sánh toàn vẹn bảng**: Gọi `Assertion.assertEquals(expectedTable, actualTable)` trên cả 2 bảng `users` và `user_info`.
+1. **Khởi tạo hạ tầng cô lập với Testcontainers:**
+   - Khi lớp test bắt đầu, `@Container PostgreSQLContainer<?>` dựng một container `postgres:16-alpine`.
+   - `DatabaseInitializer` tự động chạy để khởi tạo 4 bảng (`users`, `roles`, `user_info`, `edit_history`), nạp 2 vai trò (`user` với `role_id = 1`, `admin` với `role_id = 2`) và tạo sẵn tài khoản Admin đầu tiên (`id = 1`, `email = admin@example.com`).
+2. **Thiết lập trạng thái sạch trước mỗi kịch bản (`@BeforeEach`):**
+   - Đưa DB về đúng trạng thái chuẩn ban đầu (chỉ giữ lại tài khoản Admin `id = 1`) và khởi tạo kết nối `IDatabaseConnection` của DbUnit.
+3. **Sinh dữ liệu đầu vào động bằng Datafaker (Áp dụng EP & BVA):**
+   - Dùng `faker.internet().emailAddress()` và `faker.regexify(...)` để sinh dữ liệu ngẫu nhiên nhưng vẫn tuân thủ chặt chẽ từng phân vùng tương đương (**EP**) và giá trị biên (**BVA**).
+4. **Gửi Request đến Backend API & Kiểm tra HTTP Response:**
+   - Dùng `TestRestTemplate` gửi request tới máy chủ Spring Boot nhúng và kiểm tra HTTP Status (`201`, `400`, `409`).
+5. **Tạo Bảng Kết Quả Mong Đợi Động (Dynamic Expected Dataset) trong DbUnit:**
+   - Dùng `ReplacementDataSet` nạp tệp mẫu XML và thay thế các placeholder (`[EXPECTED_ID]`, `[EXPECTED_EMAIL]`, `[EXPECTED_NAME]`, `[EXPECTED_ROLE_ID]`, `[NULL]`) ngay tại runtime.
+6. **Ghi Log Báo Cáo & Đối Chiếu Trạng Thái Database bằng DbUnit:**
+   - Xuất bảng ASCII ra console và `backend/target/faker-dbunit-report.log`.
+   - Lọc bỏ các cột không tiền định (`password_hash`, `created_at`) bằng `DefaultColumnFilter.excludedColumnsTable`, kiểm tra riêng `BCryptPasswordEncoder.matches` và gọi `Assertion.assertEquals` trên các bảng `users`, `user_info`, `edit_history`.
 
 ---
 
-## 4. Danh Sách 17 Kịch Bản Kiểm Thử (`TC01` → `TC17`)
-
-Các kịch bản được cố định thứ tự thực thi bằng `@TestMethodOrder(MethodOrderer.OrderAnnotation.class)`:
+## 4. Danh Sách 17 Kịch Bản Kiểm Thử FR-01 (`TC01` → `TC17`)
 
 | Thứ tự | Mã TC | Kỹ thuật | Mô tả kịch bản | HTTP Status | Số dòng trong DB (`users` & `user_info`) |
 | :---: | :--- | :--- | :--- | :---: | :--- |

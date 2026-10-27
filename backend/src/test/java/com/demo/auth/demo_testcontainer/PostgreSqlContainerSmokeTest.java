@@ -1,4 +1,4 @@
-package com.demo.auth;
+package com.demo.auth.demo_testcontainer;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

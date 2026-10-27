@@ -47,7 +47,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import net.datafaker.Faker;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-abstract class AbstractDbUnitTestSupport {
+public abstract class AbstractDbUnitTestSupport {
     protected static final String ADMIN_EMAIL = "admin@example.com";
     protected static final String ADMIN_PASSWORD = "Admin@123456";
 
@@ -90,13 +90,13 @@ abstract class AbstractDbUnitTestSupport {
     protected IDatabaseConnection dbUnitConnection;
 
     @BeforeEach
-    void setUpBaseDbUnit() throws Exception {
+    protected void setUpBaseDbUnit() throws Exception {
         resetDatabaseToInitialSeed();
         dbUnitConnection = createCustomDbUnitConnection();
     }
 
     @AfterEach
-    void tearDownBaseDbUnit() throws Exception {
+    protected void tearDownBaseDbUnit() throws Exception {
         if (dbUnitConnection != null) {
             dbUnitConnection.close();
         }
@@ -215,4 +215,3 @@ abstract class AbstractDbUnitTestSupport {
                 new ParameterizedTypeReference<>() {});
     }
 }
-

@@ -1,16 +1,15 @@
-package com.demo.auth;
+package com.demo.auth.demo_dbunit;
 
+import com.demo.auth.AbstractDbUnitTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.util.Locale;
 import java.util.Map;
 import org.dbunit.Assertion;
-import org.dbunit.DatabaseUnitException;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.database.DatabaseDataSourceConnection;
 import org.dbunit.database.IDatabaseConnection;
-import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
 import org.dbunit.dataset.NoSuchColumnException;
 import org.dbunit.dataset.ReplacementDataSet;
@@ -25,10 +24,6 @@ import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -91,8 +86,6 @@ class DbUnitDemo04LimitationsAndWeaknessesTest extends AbstractDbUnitTestSupport
         }
 
         // --- MINH HỌA 1B: DBUnit so sánh JSONB như chuỗi thuần túy, báo lỗi khi khác thứ tự key ---
-        // Chuỗi JSON kỳ vọng hoàn toàn hợp lệ về mặt ngữ nghĩa (chứa đúng "before" và "after"),
-        // nhưng viết "before" trước "after", trong khi PostgreSQL JSONB chuẩn hóa "after" (5 ký tự) trước "before" (6 ký tự).
         String semanticallyEquivalentJson = String.format(
                 "{\"name\": {\"before\": \"%s\", \"after\": \"%s\"}}", initialName, newName);
 
@@ -156,13 +149,11 @@ class DbUnitDemo04LimitationsAndWeaknessesTest extends AbstractDbUnitTestSupport
     void weakness03_PositionalRowComparisonAndStringBasedSortingQuirk() throws Exception {
         // 1. Tạo 1 user mới bằng Faker
         String email = faker.internet().emailAddress().toLowerCase(Locale.ROOT);
-        String defaultUserName = email.substring(0, email.indexOf('@'));
         String password = generateValidPassword();
         request("/api/register", HttpMethod.POST,
                 Map.of("email", email, "password", password, "confirmPassword", password), null);
 
         // --- MINH HỌA 3A: DBUnit không coi bảng là tập hợp (Set), đảo vị trí dòng trong XML sẽ báo lỗi ---
-        // Người viết test đặt dòng User vừa đăng ký lên đầu và Admin ở dòng thứ 2 trong XML
         String reversedOrderXml = String.format("""
                 <dataset>
                     <users email="%s" />
@@ -217,8 +208,8 @@ class DbUnitDemo04LimitationsAndWeaknessesTest extends AbstractDbUnitTestSupport
         // Trong file demo04-column-sensing-trap.xml:
         // - Dòng 1 (Admin) không ghi thuộc tính phone_number (vì là NULL).
         // - Dòng 2 (User) ghi phone_number="+00 000 000 000" (SAI hoàn toàn so với "+84 999 888 777" trong DB!).
-        try (InputStream isWithoutSensing = getClass().getResourceAsStream("/datasets/demo04-column-sensing-trap.xml");
-             InputStream isWithSensing = getClass().getResourceAsStream("/datasets/demo04-column-sensing-trap.xml")) {
+        try (InputStream isWithoutSensing = getClass().getResourceAsStream("/datasets/demo_dbunit/demo04-column-sensing-trap.xml");
+             InputStream isWithSensing = getClass().getResourceAsStream("/datasets/demo_dbunit/demo04-column-sensing-trap.xml")) {
 
             // 1. Dùng FlatXmlDataSetBuilder MẶC ĐỊNH (columnSensing = false)
             ReplacementDataSet trapDataSet = new ReplacementDataSet(
@@ -257,4 +248,3 @@ class DbUnitDemo04LimitationsAndWeaknessesTest extends AbstractDbUnitTestSupport
         }
     }
 }
-

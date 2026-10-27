@@ -1,5 +1,6 @@
-package com.demo.auth;
+package com.demo.auth.demo_dbunit;
 
+import com.demo.auth.AbstractDbUnitTestSupport;
 import java.util.Map;
 import org.dbunit.database.DatabaseConfig;
 import org.dbunit.dataset.IDataSet;
@@ -66,7 +67,7 @@ class DbUnitDemo01SetupAndSeedingTest extends AbstractDbUnitTestSupport {
         String bcryptHash = passwordEncoder.encode(rawPassword);
 
         ReplacementDataSet seedDataSet = loadReplacementDataSet(
-                "/datasets/demo01-seed-users.xml",
+                "/datasets/demo_dbunit/demo01-seed-users.xml",
                 Map.of(
                         "${bcrypt_password}", bcryptHash,
                         "${user_role_id}", String.valueOf(roleId("user"))
@@ -108,4 +109,3 @@ class DbUnitDemo01SetupAndSeedingTest extends AbstractDbUnitTestSupport {
         assertEquals(1, dbUnitConnection.createDataSet().getTable("users").getRowCount());
     }
 }
-

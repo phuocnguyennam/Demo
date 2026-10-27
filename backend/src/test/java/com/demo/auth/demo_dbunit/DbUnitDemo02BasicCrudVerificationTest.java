@@ -1,5 +1,6 @@
-package com.demo.auth;
+package com.demo.auth.demo_dbunit;
 
+import com.demo.auth.AbstractDbUnitTestSupport;
 import java.util.Locale;
 import java.util.Map;
 import org.dbunit.dataset.IDataSet;
@@ -49,7 +50,7 @@ class DbUnitDemo02BasicCrudVerificationTest extends AbstractDbUnitTestSupport {
 
         // 3. Nạp Expected Dataset từ file XML mẫu và truyền các biến Faker vào ReplacementDataSet
         ReplacementDataSet expectedDataSet = loadReplacementDataSet(
-                "/datasets/expected-register.xml",
+                "/datasets/demo_dbunit/expected-register.xml",
                 Map.of(
                         "${email}", normalizedEmail,
                         "${default_name}", expectedDefaultName,
@@ -125,7 +126,7 @@ class DbUnitDemo02BasicCrudVerificationTest extends AbstractDbUnitTestSupport {
         );
 
         ReplacementDataSet expectedDataSet = loadReplacementDataSet(
-                "/datasets/expected-profile-update.xml",
+                "/datasets/demo_dbunit/expected-profile-update.xml",
                 Map.of(
                         "${email}", email,
                         "${updated_name}", updatedName,
@@ -196,4 +197,3 @@ class DbUnitDemo02BasicCrudVerificationTest extends AbstractDbUnitTestSupport {
         assertEquals("user", joinedQueryTable.getValue(0, "role_name"));
     }
 }
-

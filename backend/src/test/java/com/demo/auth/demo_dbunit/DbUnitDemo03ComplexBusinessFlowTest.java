@@ -1,5 +1,6 @@
-package com.demo.auth;
+package com.demo.auth.demo_dbunit;
 
+import com.demo.auth.AbstractDbUnitTestSupport;
 import java.util.Locale;
 import java.util.Map;
 import org.dbunit.Assertion;
@@ -119,7 +120,7 @@ class DbUnitDemo03ComplexBusinessFlowTest extends AbstractDbUnitTestSupport {
         );
 
         ReplacementDataSet expectedDataSet = loadReplacementDataSet(
-                "/datasets/demo03-expected-complex-flow.xml",
+                "/datasets/demo_dbunit/demo03-expected-complex-flow.xml",
                 Map.ofEntries(
                         Map.entry("${user_email}", userEmail),
                         Map.entry("${final_user_name}", finalUserName),

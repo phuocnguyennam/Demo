@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+    <!--
+      Bộ dữ liệu Data-Driven dùng làm đầu vào kịch bản kiểm thử tự động hàng loạt:
+      Mỗi dòng biểu diễn một bộ dữ liệu kiểm thử (input email, tên cập nhật, số điện thoại cập nhật, vai trò kỳ vọng)
+    -->
+    <test_cases
+        case_id="TC01_NORMAL_USER"
+        raw_email="  DataDriven.User01@Example.com  "
+        expected_email="datadriven.user01@example.com"
+        updated_name="Nguyen Van A (DataDriven 01)"
+        updated_phone="+84 911 000 001"
+        promote_to_admin="false"
+        expected_role="user" />
+
+    <test_cases
+        case_id="TC02_PROMOTED_ADMIN"
+        raw_email="DataDriven.User02@Example.com"
+        expected_email="datadriven.user02@example.com"
+        updated_name="Tran Thi B (DataDriven 02)"
+        updated_phone="+84 922 000 002"
+        promote_to_admin="true"
+        expected_role="admin" />
+
+    <test_cases
+        case_id="TC03_NO_PHONE_USER"
+        raw_email="datadriven.user03@example.com"
+        expected_email="datadriven.user03@example.com"
+        updated_name="Le Van C (DataDriven 03)"
+        updated_phone="[NULL]"
+        promote_to_admin="false"
+        expected_role="user" />
+</dataset>
+

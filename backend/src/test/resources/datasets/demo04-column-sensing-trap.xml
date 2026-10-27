@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+    <!--
+      Minh họa bẫy "Column Sensing" của DBUnit FlatXmlDataSet:
+      Dòng đầu tiên (Admin) có phone_number là NULL nên người viết test thường lược bỏ thuộc tính phone_number.
+      Nếu không bật setColumnSensing(true), DBUnit chỉ đọc metadata cột từ dòng đầu tiên và sẽ BỎ QUA
+      hoàn toàn cột phone_number ở dòng thứ 2 (dù phone_number ở dòng 2 bị ghi sai giá trị)!
+    -->
+    <user_info name="Admin" user_role="${admin_role_id}" />
+    <user_info name="${updated_name}" phone_number="+00 000 000 000" user_role="${user_role_id}" />
+</dataset>
+

@@ -22,13 +22,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/**
- * T1 - Foundation: Testcontainers + Flyway.
- *
- * <p>Testcontainers supplies a disposable PostgreSQL and Flyway is the code under test. The
- * container is started and stopped by the {@code @Testcontainers} extension, so no manual
- * {@code @AfterAll} cleanup is needed: Ryuk removes it even if the JVM dies mid-run.
- */
 @Testcontainers
 class T1MigrationTest {
 
@@ -70,14 +63,6 @@ class T1MigrationTest {
     }
   }
 
-  // @Test
-  // @DisplayName("Flyway applies both migrations and ends at version 2")
-  // void migrationAppliesBothVersions() {
-  //   assertEquals(2, migrateResult.migrationsExecuted, "expected V1 and V2 to be applied");
-  //   assertEquals("2", migrateResult.targetSchemaVersion, "schema should end at version 2");
-  // }
-
-  @Test
   @DisplayName("Migration creates all four application tables")
   void migrationCreatesAllTables() throws SQLException {
     String sql =
@@ -126,25 +111,7 @@ class T1MigrationTest {
         () -> assertTrue(exists(sql, "idx_edit_history_target_time"), "target index missing"));
   }
 
-  // @Test
-  // @DisplayName("V2 seeds exactly the user and admin roles")
-  // void migrationSeedsRoles() throws SQLException {
-  //   Set<String> roleNames = new HashSet<>();
-  //   try (Connection connection = openConnection();
-  //       Statement statement = connection.createStatement();
-  //       ResultSet result = statement.executeQuery("SELECT role_name FROM roles")) {
-  //     while (result.next()) {
-  //       roleNames.add(result.getString("role_name"));
-  //     }
-  //   }
-  //
-  //   assertEquals(Set.of("user", "admin"), roleNames);
-  // }
-
-  // ---------------------------------------------------------------------------
-  // Negative checkpoint: proves exists() can return false, so a green run of the
-  // tests above actually means something.
-  // ---------------------------------------------------------------------------
+  // This test is a sanity check to ensure that the exists() helper method works correctly.
   @Test
   @DisplayName("A table that was never created is reported as absent")
   void absentTableIsDetected() throws SQLException {

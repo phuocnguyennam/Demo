@@ -1,0 +1,14 @@
+<dataset>
+    <roles role_id="10" role_name="Admin"/>
+    <roles role_id="20" role_name="Member"/>
+
+    <users id="101"
+           email="alice@example.com"
+           password_hash="hash_alice"
+           created_at="2026-01-01 00:00:00"/>
+
+    <user_info id="101"
+               name="Alice"
+               phone_number="0123456789"
+               user_role="10"/>
+</dataset>

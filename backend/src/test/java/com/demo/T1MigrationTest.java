@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+/**
+ * T1 - Foundation: Testcontainers + Flyway.
+ *
+ * <p>Testcontainers supplies a disposable PostgreSQL and Flyway is the code under test. The
+ * container is started and stopped by the {@code @Testcontainers} extension, so no manual
+ * {@code @AfterAll} cleanup is needed: Ryuk removes it even if the JVM dies mid-run.
+ */
 @Testcontainers
 class T1MigrationTest {
 
@@ -134,8 +142,8 @@ class T1MigrationTest {
   // }
 
   // ---------------------------------------------------------------------------
-  // Negative checkpoint: proves the helper above can return false, so a green
-  // run of the tests above actually means something.
+  // Negative checkpoint: proves exists() can return false, so a green run of the
+  // tests above actually means something.
   // ---------------------------------------------------------------------------
   @Test
   @DisplayName("A table that was never created is reported as absent")

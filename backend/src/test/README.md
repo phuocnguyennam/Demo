@@ -9,26 +9,38 @@ Tài liệu này hướng dẫn cách chạy các bộ kiểm thử tự động
 ```text
 backend/src/test/
 ├── README.md                                                  # Tài liệu hướng dẫn thực thi & luồng kiểm thử
-├── java/com/demo/auth/
-│   ├── AbstractDbUnitTestSupport.java                         # Lớp cơ sở dùng chung cho các test DbUnit (hỗ trợ JSONB)
-│   ├── FR_Register_Test.java                                  # Kiểm thử FR-01 (EP & BVA: TC01 -> TC17) kế thừa lớp cơ sở
-│   ├── demo_testcontainer/                                    # Nhóm kịch bản demo/kiểm tra kết nối Testcontainers cơ bản
-│   │   └── PostgreSqlContainerSmokeTest.java                  # Smoke test kiểm tra khởi tạo container PostgreSQL & SELECT 1
-│   └── demo_dbunit/                                           # Nhóm 4 kịch bản trình diễn tính năng & điểm yếu của DbUnit
-│       ├── DbUnitDemo01SetupAndSeedingTest.java               # Demo 01: Cài đặt kết nối & Nạp dữ liệu mẫu (Data Seeding)
-│       ├── DbUnitDemo02BasicCrudVerificationTest.java         # Demo 02: Kiểm thử CRUD cơ bản (Faker -> API -> DbUnit)
-│       ├── DbUnitDemo03ComplexBusinessFlowTest.java           # Demo 03: Luồng nghiệp vụ đa tác nhân & Phân quyền RBAC
-│       └── DbUnitDemo04LimitationsAndWeaknessesTest.java      # Demo 04: Minh họa 4 điểm yếu thực tế của DbUnit & Cách xử lý
-└── resources/datasets/
-    ├── expected-register-success.xml                          # Dataset của RegistrationFakerDbUnitTest (201 Created)
-    ├── expected-register-unchanged.xml                        # Dataset của RegistrationFakerDbUnitTest (400 Bad Request)
-    └── demo_dbunit/                                           # Thư mục chứa Dataset XML riêng cho nhóm demo_dbunit
-        ├── demo01-seed-users.xml                              # Seed 2 người dùng mẫu bằng DatabaseOperation.REFRESH
-        ├── expected-register.xml                              # Dataset kỳ vọng khi đăng ký mới (Demo 02)
-        ├── expected-profile-update.xml                        # Dataset kỳ vọng khi cập nhật hồ sơ (Demo 02)
-        ├── demo03-expected-complex-flow.xml                   # Dataset kỳ vọng cho luồng đa tác nhân (Demo 03)
-        ├── demo04-column-sensing-trap.xml                     # Dataset minh họa bẫy Column Sensing (Demo 04)
-        └── demo05-data-driven-cases.xml                       # Dataset mẫu cho kịch bản Data-Driven
+├── java/com/demo/
+│   ├── auth/                                                  # Kiểm thử tích hợp qua Backend REST API + DbUnit
+│   │   ├── AbstractDbUnitTestSupport.java                     # Lớp cơ sở dùng chung cho các test DbUnit (hỗ trợ JSONB)
+│   │   ├── FR_Register_Test.java                              # Kiểm thử FR-01 (EP & BVA: TC01 -> TC17) kế thừa lớp cơ sở
+│   │   ├── demo_testcontainer/                                # Nhóm kịch bản demo/kiểm tra kết nối Testcontainers cơ bản
+│   │   │   └── PostgreSqlContainerSmokeTest.java              # Smoke test kiểm tra khởi tạo container PostgreSQL & SELECT 1
+│   │   └── demo_dbunit/                                       # Nhóm 4 kịch bản trình diễn tính năng & điểm yếu của DbUnit qua API
+│   │       ├── DbUnitDemo01SetupAndSeedingTest.java           # Demo 01: Cài đặt kết nối & Nạp dữ liệu mẫu (Data Seeding)
+│   │       ├── DbUnitDemo02BasicCrudVerificationTest.java     # Demo 02: Kiểm thử CRUD cơ bản (Faker -> API -> DbUnit)
+│   │       ├── DbUnitDemo03ComplexBusinessFlowTest.java       # Demo 03: Luồng nghiệp vụ đa tác nhân & Phân quyền RBAC
+│   │       └── DbUnitDemo04LimitationsAndWeaknessesTest.java  # Demo 04: Minh họa 4 điểm yếu thực tế của DbUnit & Cách xử lý
+│   └── database_unit_testing/                                 # Kiểm thử đơn vị tầng Database thuần (Flyway + JDBC + DbUnit + Datafaker)
+│       ├── T1MigrationTest.java                               # T1: Kiểm thử lược đồ CSDL (bảng, khóa ngoại, index) sau Flyway migrate
+│       ├── T2DBUnitTest.java                                  # T2: Nạp dữ liệu tĩnh XML (CLEAN_INSERT) & đối chiếu bảng với DbUnit
+│       ├── T3CRUDTest.java                                    # T3: Kiểm thử thao tác SQL CRUD trực tiếp & chuỗi thao tác tuần tự
+│       ├── T4CheckPointTest.java                              # T4: Kiểm thử Multi-Checkpoint qua 4 bảng có ràng buộc khóa ngoại
+│       └── T5DatafakerTest.java                               # T5: Sinh dữ liệu ngẫu nhiên với Datafaker & tạo ITable kỳ vọng động
+└── resources/
+    ├── db/migration/
+    │   └── V1__auth_schema.sql                                # Script Flyway tạo schema cho nhóm database_unit_testing (T1 -> T5)
+    └── datasets/
+        ├── expected-register-success.xml                      # Dataset của FR_Register_Test (201 Created)
+        ├── expected-register-unchanged.xml                    # Dataset của FR_Register_Test (400 Bad Request)
+        ├── empty.xml                                          # Dataset rỗng dùng để dọn sạch 4 bảng trong T3, T4, T5
+        ├── T2/, T3/, T4/                                      # Các thư mục chứa Dataset XML kỳ vọng cho T2, T3, T4
+        └── demo_dbunit/                                       # Thư mục chứa Dataset XML riêng cho nhóm demo_dbunit
+            ├── demo01-seed-users.xml                          # Seed 2 người dùng mẫu bằng DatabaseOperation.REFRESH
+            ├── expected-register.xml                          # Dataset kỳ vọng khi đăng ký mới (Demo 02)
+            ├── expected-profile-update.xml                    # Dataset kỳ vọng khi cập nhật hồ sơ (Demo 02)
+            ├── demo03-expected-complex-flow.xml               # Dataset kỳ vọng cho luồng đa tác nhân (Demo 03)
+            ├── demo04-column-sensing-trap.xml                 # Dataset minh họa bẫy Column Sensing (Demo 04)
+            └── demo05-data-driven-cases.xml                   # Dataset mẫu cho kịch bản Data-Driven
 ```
 
 ---
@@ -55,6 +67,11 @@ backend/src/test/
 * **Chạy riêng nhóm 4 kịch bản Demo DbUnit trong thư mục `demo_dbunit`:**
   ```powershell
   mvn -f backend\pom.xml "-Dtest=com.demo.auth.demo_dbunit.*Test" test
+  ```
+
+* **Chạy riêng nhóm 5 kịch bản Database Unit Testing (`T1` → `T5`) trong thư mục `database_unit_testing`:**
+  ```powershell
+  mvn -f backend\pom.xml "-Dtest=com.demo.database_unit_testing.*Test" test
   ```
 
 ### 2.3. Xem báo cáo dữ liệu Faker và bảng Database sau khi chạy test

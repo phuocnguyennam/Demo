@@ -1,4 +1,4 @@
-package com.demo;
+package com.demo.database_unit_testing;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,6 +63,7 @@ class T1MigrationTest {
     }
   }
 
+  @Test
   @DisplayName("Migration creates all four application tables")
   void migrationCreatesAllTables() throws SQLException {
     String sql =

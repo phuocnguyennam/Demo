@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+    <!-- Dữ liệu seed mẫu được nạp vào DB thông qua DatabaseOperation của DBUnit -->
+    <users id="100" email="seeded.user1@example.com" password_hash="${bcrypt_password}" />
+    <users id="101" email="seeded.user2@example.com" password_hash="${bcrypt_password}" />
+
+    <user_info id="100" name="Seeded User One" phone_number="+84 901 111 222" user_role="${user_role_id}" />
+    <user_info id="101" name="Seeded User Two" phone_number="[NULL]" user_role="${user_role_id}" />
+</dataset>
+

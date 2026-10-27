@@ -19,6 +19,8 @@
   <properties>
     <java.version>27</java.version>
     <testcontainers.version>1.21.4</testcontainers.version>
+    <dbunit.version>2.8.0</dbunit.version>
+    <datafaker.version>2.4.2</datafaker.version>
   </properties>
 
   <dependencies>
@@ -62,15 +64,15 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>net.datafaker</groupId>
-      <artifactId>datafaker</artifactId>
-      <version>2.4.2</version>
+      <groupId>org.dbunit</groupId>
+      <artifactId>dbunit</artifactId>
+      <version>${dbunit.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.dbunit</groupId>
-      <artifactId>dbunit</artifactId>
-      <version>2.8.0</version>
+      <groupId>net.datafaker</groupId>
+      <artifactId>datafaker</artifactId>
+      <version>${datafaker.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

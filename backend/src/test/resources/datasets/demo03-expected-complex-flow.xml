@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+    <!-- Trạng thái kỳ vọng của bảng users sau luồng đa tác nhân -->
+    <users email="admin@example.com" />
+    <users email="${user_email}" />
+
+    <!-- Trạng thái kỳ vọng của bảng user_info: User đã được nâng quyền lên admin và đổi tên lần 2 -->
+    <user_info name="Admin" phone_number="[NULL]" user_role="${admin_role_id}" />
+    <user_info name="${final_user_name}" phone_number="${admin_assigned_phone}" user_role="${admin_role_id}" />
+
+    <!--
+      Trạng thái kỳ vọng của bảng edit_history (3 bản ghi theo đúng trình tự thời gian):
+      1. User tự cập nhật tên (initial -> self_updated) và SĐT (null -> self_phone).
+         Lưu ý actor_name phải giữ nguyên là initial_name (snapshot tại thời điểm sửa).
+      2. Admin cập nhật tên của User (self_updated -> admin_assigned), SĐT và nâng role (user -> admin).
+      3. User (nay là Admin) tự cập nhật tên mình lần 2 (admin_assigned -> final_user_name).
+         Lưu ý actor_name chụp tại thời điểm này là admin_assigned_name.
+    -->
+    <edit_history
+        actor_user_id="${user_id}"
+        actor_name="${initial_name}"
+        target_user_id="${user_id}"
+        changed_fields="${diff_step_1}" />
+
+    <edit_history
+        actor_user_id="${admin_id}"
+        actor_name="Admin"
+        target_user_id="${user_id}"
+        changed_fields="${diff_step_2}" />
+
+    <edit_history
+        actor_user_id="${user_id}"
+        actor_name="${admin_assigned_name}"
+        target_user_id="${user_id}"
+        changed_fields="${diff_step_3}" />
+</dataset>
+

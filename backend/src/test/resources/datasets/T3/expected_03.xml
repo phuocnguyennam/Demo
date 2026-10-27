@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+    <users
+        id="101"
+        email="alice.new@example.com"
+        password_hash="hash_alice"
+        created_at="2026-01-01 00:00:00"/>
+    <roles/>
+    <user_info/>
+    <edit_history/>
+</dataset>
+

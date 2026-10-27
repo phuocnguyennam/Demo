@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+    <users id="1" email="admin@example.com" />
+
+    <user_info id="1" name="Admin" phone_number="[NULL]" user_role="2" />
+</dataset>

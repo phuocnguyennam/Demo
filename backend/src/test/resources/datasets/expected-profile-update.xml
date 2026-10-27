@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+    <users email="admin@example.com" />
+    <users email="${email}" />
+
+    <user_info name="Admin" phone_number="[NULL]" user_role="${admin_role_id}" />
+    <user_info name="${updated_name}" phone_number="${updated_phone}" user_role="${user_role_id}" />
+
+    <edit_history
+        actor_user_id="${user_id}"
+        actor_name="${old_name}"
+        target_user_id="${user_id}"
+        changed_fields="${changed_fields}" />
+</dataset>
+
